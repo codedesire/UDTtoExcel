@@ -1,0 +1,82 @@
+TYPE "uCDA"
+VERSION : 0.1
+
+
+  STRUCT
+   CMD : STRUCT
+    Sirena_Start : BOOL ;	//Запрос на старт ППС
+    Reserv1 : BOOL ;
+    Reserv2 : BOOL ;
+    Reserv3 : BOOL ;
+    Reserv4 : BOOL ;
+    Reserv5 : BOOL ;
+    Reserv6 : BOOL ;
+    Reserv7 : BOOL ;
+    Reserv8 : BYTE ;
+   END_STRUCT ;
+   s : STRUCT
+    s_PF_Req : BOOL ;	//Передний фронт Req
+    PPS_End : BOOL ;	//Память - Сирена отзвучала
+    PPS_Edge : BOOL ;	//Огибающая сирены
+    PPS_ON : BOOL ;	//Сирена кричит(10с и через 30с ещё 30с)
+    pMill : BOOL ;	//t подшипников мельницы
+    pM : BOOL ;	//t подшипников привода
+    FeCu : BOOL ;	//t обомотки привода
+    Reserv7 : BOOL ;
+    QF_No : BOOL ;	//Сообщение: автомат ППС не включен
+    QF_Fault : BOOL ;	//Авария: автомат ППС отключился во время работы
+    Reserv10 : BOOL ;
+    Reserv11 : BOOL ;
+    Reserv12 : BOOL ;
+    Reserv13 : BOOL ;
+    Reserv14 : BOOL ;
+    All_Alarm : BOOL ;	//Авария: общая сборка
+   END_STRUCT ;
+   e1 : STRUCT 	//empty1
+    s10 : BOOL ;	//Таймер сирены 10с
+    p30 : BOOL ;	//Таймер паузы  30с
+    s30 : BOOL ;	//Таймер сирены 30с
+    Reserv3 : BOOL ;
+    Reserv4 : BOOL ;
+    Reserv5 : BOOL ;
+    Reserv6 : BOOL ;
+    Reserv7 : BOOL ;
+    Reserv8 : BOOL ;
+    Reserv9 : BOOL ;
+    Reserv10 : BOOL ;
+    Reserv11 : BOOL ;
+    Reserv12 : BOOL ;
+    Reserv13 : BOOL ;
+    Reserv14 : BOOL ;
+    Reserv15 : BOOL ;
+   END_STRUCT ;
+   e2 : STRUCT 	//empty2
+    Reserv0 : BOOL ;
+    Reserv1 : BOOL ;
+    Reserv2 : BOOL ;
+    Reserv3 : BOOL ;
+    Reserv4 : BOOL ;
+    Reserv5 : BOOL ;
+    Reserv6 : BOOL ;
+    Reserv7 : BOOL ;
+    Reserv8 : BOOL ;
+    Reserv9 : BOOL ;
+    Reserv10 : BOOL ;
+    Reserv11 : BOOL ;
+    Reserv12 : BOOL ;
+    Reserv13 : BOOL ;
+    Reserv14 : BOOL ;
+    Reserv15 : BOOL ;
+   END_STRUCT ;
+   p : STRUCT
+    Time_10s : TIME  := T#10S;	//Константа времени сирены(10S)
+    Time_40s : TIME  := T#40S;	//Константа времени сирены(40s)
+    Time_70s : TIME  := T#1M10S;	//Константа времени сирены(70s)
+    Time_const : TIME ;	//Константа резерв
+    Time_Sirena : TIME ;	//Переменная накопления времени
+    TimeToON : TIME ;	//Время до окнчания работы ППС
+    Cu : REAL ;	//Средняя t Cu (только для мельниц)
+    Fe : REAL ;	//Средняя t Fe (только для мельниц)
+   END_STRUCT ;
+  END_STRUCT ;
+END_TYPE

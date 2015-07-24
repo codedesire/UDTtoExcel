@@ -1,0 +1,15 @@
+TYPE "nest"
+VERSION : 1.1.1
+
+STRUCT
+    STRUCT
+        STRUCT
+        END_STRUCT
+    END_STRUCT
+    STRUCT
+        STRUCT
+            STRUCT
+            END_STRUCT
+        END_STRUCT
+      END_STRUCT
+END_STRUCT
