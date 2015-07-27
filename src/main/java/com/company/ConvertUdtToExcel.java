@@ -114,6 +114,7 @@ public class ConvertUdtToExcel{
     private static final String NEST_SHIFTER = "    ";
 
     public LinkedHashMap<String, String> tableTitle = new LinkedHashMap<String, String>();
+    public LinkedHashMap<String, Double> dataTypes = new LinkedHashMap<String, Double>();
 
     public XSSFWorkbook myWorkBook;
     public XSSFSheet mySheet;
@@ -143,6 +144,15 @@ public class ConvertUdtToExcel{
         tableTitle.put("name_column", "Name");
         tableTitle.put("type_column", "Type");
         tableTitle.put("comment_column", "Comment");
+    }
+
+    private void fillDataTypesHashMap(){
+        dataTypes.put("BOOL", 0.1);
+        dataTypes.put("INT", 2.0);
+        dataTypes.put("WORD", 2.0);
+        dataTypes.put("REAL", 4.0);
+        dataTypes.put("DWORD", 4.0);
+
     }
 
 
@@ -232,38 +242,17 @@ public class ConvertUdtToExcel{
 
         fillTableWithData(mySheet);
 
+        autoSizeAllColumnWidth(mySheet);
 
-        // Write the output to a file
 
-       /* // Get iterator to all the rows in current sheet
-        Iterator<Row> rowIterator = mySheet.iterator();
 
-        // Traversing over each row of XLSX file
-        while (rowIterator.hasNext()) {
-            Row row = rowIterator.next();
-
-            // For each row, iterate through each columns
-            Iterator<Cell> cellIterator = row.cellIterator();
-            while (cellIterator.hasNext()) {
-
-                Cell cell = cellIterator.next();
-
-                switch (cell.getCellType()) {
-                    case Cell.CELL_TYPE_STRING:
-                        System.out.print(cell.getStringCellValue() + "\t");
-                        break;
-                    case Cell.CELL_TYPE_NUMERIC:
-                        System.out.print(cell.getNumericCellValue() + "\t");
-                        break;
-                    case Cell.CELL_TYPE_BOOLEAN:
-                        System.out.print(cell.getBooleanCellValue() + "\t");
-                        break;
-                    default :
-
-                }
-            }
-            System.out.println("");*/
         }
+
+    private void autoSizeAllColumnWidth(XSSFSheet mySheet) {
+        Row row = mySheet.getRow(3);
+        for(int colNum = 0; colNum<row.getLastCellNum();colNum++)
+            mySheet.autoSizeColumn(colNum);
+    }
 
     private void fillTableWithData(XSSFSheet mySheet) {
         File structFile = new File(filename);
