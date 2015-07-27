@@ -11,6 +11,7 @@ import org.apache.poi.xssf.usermodel.helpers.ColumnHelper;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 class Main {
@@ -103,18 +104,21 @@ class Main {
 public class ConvertUdtToExcel{
 
     private static final String TYPE_SEPARATOR = " : ";
-    private static final String COMMENT_SEPARATOR = "\\\\";
+    private static final String TYPE_END_SEPARATOR = ";";
+    private static final String COMMENT_SEPARATOR = "//";
     private static final String STRUCT_BEGIN = " STRUCT";
     private static final String STRUCT_END = "END_STRUCT";
     private static final String AUTHOR_SEPARATOR = "\'";
     private static final String TYPE_UDT_SEPARATOR = "\"";
+    private static final String STRUCT_TYPE_END_SEPARATOR = " ";
+    private static final String NEST_SHIFTER = "    ";
 
     public LinkedHashMap<String, String> tableTitle = new LinkedHashMap<String, String>();
 
     public XSSFWorkbook myWorkBook;
     public XSSFSheet mySheet;
 
-
+    public String filename , excelFilename;
 
     public ConvertUdtToExcel(){
         createEmptyTableTitle();
@@ -132,16 +136,15 @@ public class ConvertUdtToExcel{
         tableTitle.put("type", "");
         tableTitle.put("author", "");
         tableTitle.put("version", "");
-        tableTitle.put("udt_name_cell", "Name of datatype");
-        tableTitle.put("author_cell", "Автор: ");
-        tableTitle.put("version_cell", "Версия: ");
-        /*tableTitle.put("address_column", "Адрес");
-        tableTitle.put("name_column", "Имя");
-        tableTitle.put("type_column", "Тип данных");
-        tableTitle.put("comment_column", "Комментарий");*/
+        tableTitle.put("udt_name_cell", "Name of UDT: ");
+        tableTitle.put("author_cell", "Author: ");
+        tableTitle.put("version_cell", "Version: ");
+        tableTitle.put("address_column", "Adress");
+        tableTitle.put("name_column", "Name");
+        tableTitle.put("type_column", "Type");
+        tableTitle.put("comment_column", "Comment");
     }
 
-    public String filename , excelFilename;
 
     private void createExcelFile(String excelFilename) {
         createExcelEmptyFile(excelFilename);
@@ -204,23 +207,33 @@ public class ConvertUdtToExcel{
 
     public  void writeTableHeader(XSSFSheet mySheet, String filename){
         ArrayList<String> listTitle = new ArrayList<String>(tableTitle.values());
-        for(short rowIterator = 0; rowIterator < 3; rowIterator++){
+        for(short rowIterator = 0; rowIterator < 4; rowIterator++){
             Row row = mySheet.createRow(rowIterator);
             Cell cell = row.createCell(0);
-            cell.setCellValue("");
-            //listTitle.get(rowIterator+3) + listTitle.get(rowIterator)
+            if(rowIterator < 3){
+                cell.setCellValue(listTitle.get(rowIterator+3) + listTitle.get(rowIterator));
+                mySheet.addMergedRegion(new CellRangeAddress(
+                        rowIterator, //first row (0-based)
+                        rowIterator, //last row  (0-based)
+                        0, //first column (0-based)
+                        3  //last column  (0-based)
+                ));
+            }
+            else{
+                for (short cellIterator = 0; cellIterator <4; cellIterator++){
+                    cell = row.createCell(cellIterator);
+                    cell.setCellValue(listTitle.get(cellIterator+6));
+                }
+            }
 
-            mySheet.addMergedRegion(new CellRangeAddress(
-                    rowIterator, //first row (0-based)
-                    rowIterator, //last row  (0-based)
-                    0, //first column (0-based)
-                    3  //last column  (0-based)
-            ));
+
         }
 
+
+        fillTableWithData(mySheet);
+
+
         // Write the output to a file
-
-
 
        /* // Get iterator to all the rows in current sheet
         Iterator<Row> rowIterator = mySheet.iterator();
@@ -251,5 +264,62 @@ public class ConvertUdtToExcel{
             }
             System.out.println("");*/
         }
+
+    private void fillTableWithData(XSSFSheet mySheet) {
+        File structFile = new File(filename);
+        short rowIterator = 4;
+        int lineNumber = 0;
+        int numberOfStruct = 0;
+        boolean jumpToData = false;
+        try {
+            Scanner scanner = new Scanner(structFile);
+            String line = scanner.nextLine();
+            while(scanner.hasNextLine() & lineNumber < 100) {
+                if (line.contains("STRUCT")) {
+                    jumpToData = true;
+                    break;
+                }
+                lineNumber++;
+                line = scanner.nextLine();
+            }
+            if (!jumpToData){
+                System.out.println("Sorry, we can't find STRUCT begin");
+            } else{
+                while (scanner.hasNextLine()){
+                    line = scanner.nextLine();
+                    if(line.contains(TYPE_END_SEPARATOR) | line.contains(STRUCT_BEGIN)){
+
+                        Row row = mySheet.createRow(rowIterator);
+                        Cell cell = row.createCell(1);
+                        if (line.contains(STRUCT_BEGIN)) {
+                            cell.setCellValue(getNestShifter(numberOfStruct) + line.split(TYPE_SEPARATOR)[0].replaceAll("\\s+", ""));
+                            numberOfStruct++;
+                        } else if (line.contains(STRUCT_END)){
+                            numberOfStruct--;
+                            continue;
+                        }else{
+                            cell.setCellValue(getNestShifter(numberOfStruct) + line.split(TYPE_SEPARATOR)[0].replaceAll("\\s+", ""));
+                        }
+                        cell = row.createCell(2);
+                        cell.setCellValue(line.split(TYPE_SEPARATOR)[1].split(line.contains(STRUCT_BEGIN) ? COMMENT_SEPARATOR :TYPE_END_SEPARATOR)[0].replaceAll("\\s+", ""));
+                        if (line.contains(COMMENT_SEPARATOR)) {
+                            cell = row.createCell(3);
+                            cell.setCellValue(line.split(COMMENT_SEPARATOR)[1]);
+                        }
+                        rowIterator++;
+                    }
+                }
+            }
+
+            scanner.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String getNestShifter(int shiftNumbers) {
+        if (shiftNumbers >=0) return new String(new char[shiftNumbers]).replace("\0", NEST_SHIFTER);
+        return "";
+    }
 
 }
