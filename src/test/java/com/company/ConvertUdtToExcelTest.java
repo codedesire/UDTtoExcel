@@ -5,6 +5,7 @@ import org.junit.Test;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 import static org.junit.Assert.*;
 
@@ -12,7 +13,7 @@ import static org.junit.Assert.*;
  * Created by engineer on 22.07.2015.
  * ExcelTest com.company contains ..
  */
-public class MainTest {
+public class ConvertUdtToExcelTest {
 
     private static String FILE_PATH = new File("").getAbsolutePath()+File.separator+"src"+File.separator+
             "test"+File.separator;
@@ -37,12 +38,7 @@ public class MainTest {
     }
 
 
-    @Test
-    public void testGetStructNesting() throws Exception {
-        ConvertUdtToExcel obj = new ConvertUdtToExcel();
-        for(String key : FILE_NAMES.keySet() )
-        assertEquals("File:"+key, obj.getStructNesting(FILE_PATH + key), Integer.parseInt(FILE_NAMES.get(key)[0]));
-    }
+
 
     @Test
     public void testGetTableTitle() throws Exception {
@@ -52,5 +48,14 @@ public class MainTest {
             for (String keyIterator : test.tableTitle.keySet())
                 assertEquals("File:" + key + " parameter: " + keyIterator, test.tableTitle.get(keyIterator), FILE_NAMES.get(key)[FILE_TITLE_ORDER.get(keyIterator)]);
         }
+    }
+
+    @Test
+    public void testGetCurrentAddress() throws Exception {
+        File structFile = new File(FILE_PATH + "adress_test.txt");
+        Scanner scanner = new Scanner(structFile);
+
+
+
     }
 }

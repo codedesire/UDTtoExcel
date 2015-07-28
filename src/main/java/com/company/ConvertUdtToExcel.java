@@ -2,16 +2,18 @@ package com.company;
 
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.xssf.usermodel.helpers.ColumnHelper;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 class Main {
@@ -24,7 +26,7 @@ class Main {
             parseArguments(args);
         }
 
-        ConvertUdtToExcel obj = new ConvertUdtToExcel(filename, excelFilename);
+        new ConvertUdtToExcel(filename, excelFilename);
 
         //obj.getTableTitle();
 
@@ -103,6 +105,7 @@ class Main {
 
 public class ConvertUdtToExcel{
 
+    public static final String ASSIGN_DEFAULT_VALUE = ":=";
     private static final String TYPE_SEPARATOR = " : ";
     private static final String TYPE_END_SEPARATOR = ";";
     private static final String COMMENT_SEPARATOR = "//";
@@ -119,7 +122,16 @@ public class ConvertUdtToExcel{
     public XSSFWorkbook myWorkBook;
     public XSSFSheet mySheet;
 
+    public CellStyle structBegin, structEnd;
+
+
     public String filename , excelFilename;
+
+    private double globalSum, structSum  = 0;
+
+
+    private boolean isPreviousBool = false;
+
 
     public ConvertUdtToExcel(){
         createEmptyTableTitle();
@@ -127,10 +139,12 @@ public class ConvertUdtToExcel{
 
     public ConvertUdtToExcel(String filename, String excelFilename) {
         createEmptyTableTitle();
+        fillDataTypesHashMap();
         this.filename = filename;
         this.excelFilename = excelFilename;
         getTableTitle(filename);
         createExcelFile(excelFilename);
+        createCellStyles();
     }
 
     private void createEmptyTableTitle() {
@@ -149,11 +163,28 @@ public class ConvertUdtToExcel{
     private void fillDataTypesHashMap(){
         dataTypes.put("BOOL", 0.1);
         dataTypes.put("INT", 2.0);
+        dataTypes.put("DINT", 4.0);
         dataTypes.put("WORD", 2.0);
         dataTypes.put("REAL", 4.0);
         dataTypes.put("DWORD", 4.0);
+        dataTypes.put("S5TIME", 2.0);
+        dataTypes.put("TIME", 2.0);
+        dataTypes.put("DATE", 4.0);
+        dataTypes.put("TIME_OF_DAY", 4.0);
+
+
 
     }
+
+    private void createCellStyles(){
+        structBegin = myWorkBook.createCellStyle();
+        structBegin.setFillBackgroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        structEnd = myWorkBook.createCellStyle();
+        structEnd.setFillBackgroundColor(IndexedColors.GREY_50_PERCENT.getIndex());
+
+    }
+
+
 
 
     private void createExcelFile(String excelFilename) {
@@ -175,22 +206,6 @@ public class ConvertUdtToExcel{
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-    }
-
-    public  int getStructNesting(String filename) throws FileNotFoundException{
-        int numberOfStruct = 0;
-        boolean  structEnd = false;
-        File structFile = new File(filename);
-        Scanner scanner = new Scanner(structFile);
-        while (scanner.hasNextLine()){
-            String line = scanner.nextLine();
-            if (line.contains(STRUCT_BEGIN) & !structEnd) {
-                numberOfStruct++;
-            } else if (line.contains(STRUCT_BEGIN)) structEnd = false;
-            if (line.contains(STRUCT_END)) structEnd = true;
-        }
-        scanner.close();
-        return numberOfStruct;
     }
 
     public  void getTableTitle(String filename) {
@@ -259,6 +274,7 @@ public class ConvertUdtToExcel{
         short rowIterator = 4;
         int lineNumber = 0;
         int numberOfStruct = 0;
+
         boolean jumpToData = false;
         try {
             Scanner scanner = new Scanner(structFile);
@@ -279,12 +295,22 @@ public class ConvertUdtToExcel{
                     if(line.contains(TYPE_END_SEPARATOR) | line.contains(STRUCT_BEGIN)){
 
                         Row row = mySheet.createRow(rowIterator);
-                        Cell cell = row.createCell(1);
+                        //System.out.println(numberOfStruct);
+                        Cell cell = row.createCell(0);
+                        cell.setCellValue(getCurrentAddress(line));
+
+                        cell = row.createCell(1);
+
                         if (line.contains(STRUCT_BEGIN)) {
                             cell.setCellValue(getNestShifter(numberOfStruct) + line.split(TYPE_SEPARATOR)[0].replaceAll("\\s+", ""));
+                            cell.setCellStyle(structBegin);
                             numberOfStruct++;
                         } else if (line.contains(STRUCT_END)){
                             numberOfStruct--;
+                            cell = row.createCell(2);
+                            cell.setCellValue(STRUCT_END);
+                            cell.setCellStyle(structEnd);
+                            rowIterator++;
                             continue;
                         }else{
                             cell.setCellValue(getNestShifter(numberOfStruct) + line.split(TYPE_SEPARATOR)[0].replaceAll("\\s+", ""));
@@ -306,9 +332,52 @@ public class ConvertUdtToExcel{
         }
     }
 
+    public String getCurrentAddress(String line) {
+        double currentDataSize, addressShift;
+        double currentGlobalSum = globalSum;
+        //double currentStructSum = structSum;
+        if (line.contains(STRUCT_BEGIN)) {
+            structSum = 0.0;
+            return "+" + Double.toString(round(globalSum, 2));
+        } else if (line.contains(STRUCT_END)) {
+            return "=" + Double.toString(round(structSum, 2));
+        } else {
+            String dataType = line.split(TYPE_SEPARATOR)[1].split(TYPE_END_SEPARATOR)[0].replaceAll("\\s+", "");
+            if (line.contains(ASSIGN_DEFAULT_VALUE)) dataType = dataType.split(ASSIGN_DEFAULT_VALUE)[0].replaceAll("\\s+", "");
+            currentDataSize = dataTypes.containsKey(dataType) ? dataTypes.get(dataType) : 0;
+            if(line.contains("BOOL")){
+                isPreviousBool = true;
+                addressShift = (checkBoolSumOverflow(globalSum)) ? 0.3 : 0.1;
+            }
+            else if (isPreviousBool & checkBoolSumOverflow(globalSum)) {
+                addressShift = 2.0 + currentDataSize;
+                isPreviousBool = false;
+            } else addressShift = currentDataSize;
+
+            structSum +=  addressShift;
+            globalSum += addressShift;
+            return "+" + Double.toString(round(currentGlobalSum, 2));
+        }
+    }
+
     private String getNestShifter(int shiftNumbers) {
         if (shiftNumbers >=0) return new String(new char[shiftNumbers]).replace("\0", NEST_SHIFTER);
         return "";
     }
+
+    public boolean checkBoolSumOverflow(double num){
+        long iPart = (long) num;;
+        double fPart = num - iPart;
+        return (fPart >= 0.7);
+    }
+
+    public static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+        BigDecimal bd = new BigDecimal(value);
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
+
 
 }
