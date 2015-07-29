@@ -1,13 +1,12 @@
 package com.company;
 
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.IndexedColors;
-import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.formula.FormulaParseException;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -122,12 +121,15 @@ public class ConvertUdtToExcel{
     public XSSFWorkbook myWorkBook;
     public XSSFSheet mySheet;
 
-    public CellStyle structBegin, structEnd;
+    public XSSFCellStyle structBegin, structEnd;
 
 
     public String filename , excelFilename;
 
     private double globalSum, structSum  = 0;
+
+    private ArrayList<Short>  structBeginRows = new ArrayList<Short>();
+    private ArrayList<Short>  structEndRows = new ArrayList<Short>();
 
 
     private boolean isPreviousBool = false;
@@ -144,7 +146,6 @@ public class ConvertUdtToExcel{
         this.excelFilename = excelFilename;
         getTableTitle(filename);
         createExcelFile(excelFilename);
-        createCellStyles();
     }
 
     private void createEmptyTableTitle() {
@@ -178,10 +179,11 @@ public class ConvertUdtToExcel{
 
     private void createCellStyles(){
         structBegin = myWorkBook.createCellStyle();
-        structBegin.setFillBackgroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        structBegin.setFillForegroundColor(IndexedColors.GREY_40_PERCENT.getIndex());
+        structBegin.setFillPattern(XSSFCellStyle.SOLID_FOREGROUND);
         structEnd = myWorkBook.createCellStyle();
-        structEnd.setFillBackgroundColor(IndexedColors.GREY_50_PERCENT.getIndex());
-
+        structEnd.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        structEnd.setFillPattern(XSSFCellStyle.SOLID_FOREGROUND);
     }
 
 
@@ -196,6 +198,8 @@ public class ConvertUdtToExcel{
         try {
             myWorkBook = new XSSFWorkbook();
             mySheet = myWorkBook.createSheet(tableTitle.get("type"));
+
+            createCellStyles();
 
             writeTableHeader(mySheet, filename);
 
@@ -256,12 +260,31 @@ public class ConvertUdtToExcel{
 
 
         fillTableWithData(mySheet);
-
         autoSizeAllColumnWidth(mySheet);
+        fillRowsForeground(mySheet);
+        removeLastRow(mySheet);
 
 
 
         }
+
+    private void removeLastRow(XSSFSheet mySheet) {
+        Row lastRow = mySheet.getRow(mySheet.getLastRowNum());
+        for (short iterator = 0; iterator <= 3; iterator++){
+            if(null == lastRow.getCell(iterator, Row.RETURN_NULL_AND_BLANK)) continue;
+            lastRow.removeCell(lastRow.getCell(iterator));
+        }
+
+    }
+
+    private void fillRowsForeground(XSSFSheet mySheet) {
+        for(short rowNumber : structBeginRows){
+            fillRowForeground(mySheet.getRow(rowNumber), structBegin);
+        }
+        for(short rowNumber : structEndRows){
+            fillRowForeground(mySheet.getRow(rowNumber), structEnd);
+        }
+    }
 
     private void autoSizeAllColumnWidth(XSSFSheet mySheet) {
         Row row = mySheet.getRow(3);
@@ -295,7 +318,7 @@ public class ConvertUdtToExcel{
                     if(line.contains(TYPE_END_SEPARATOR) | line.contains(STRUCT_BEGIN)){
 
                         Row row = mySheet.createRow(rowIterator);
-                        //System.out.println(numberOfStruct);
+
                         Cell cell = row.createCell(0);
                         cell.setCellValue(getCurrentAddress(line));
 
@@ -303,13 +326,13 @@ public class ConvertUdtToExcel{
 
                         if (line.contains(STRUCT_BEGIN)) {
                             cell.setCellValue(getNestShifter(numberOfStruct) + line.split(TYPE_SEPARATOR)[0].replaceAll("\\s+", ""));
-                            cell.setCellStyle(structBegin);
+                            structBeginRows.add(rowIterator);
                             numberOfStruct++;
                         } else if (line.contains(STRUCT_END)){
                             numberOfStruct--;
                             cell = row.createCell(2);
                             cell.setCellValue(STRUCT_END);
-                            cell.setCellStyle(structEnd);
+                            structEndRows.add(rowIterator);
                             rowIterator++;
                             continue;
                         }else{
@@ -325,17 +348,24 @@ public class ConvertUdtToExcel{
                     }
                 }
             }
-
             scanner.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
     }
 
+    private void fillRowForeground(Row row, XSSFCellStyle userCellStyle) {
+        for (short iterator = 0; iterator <= 3; iterator++){
+            Cell tempCell;
+            if(null == row.getCell(iterator, Row.RETURN_NULL_AND_BLANK)) row.createCell(iterator);
+            tempCell = row.getCell(iterator);
+            tempCell.setCellStyle(userCellStyle);
+        }
+    }
+
     public String getCurrentAddress(String line) {
         double currentDataSize, addressShift;
         double currentGlobalSum = globalSum;
-        //double currentStructSum = structSum;
         if (line.contains(STRUCT_BEGIN)) {
             structSum = 0.0;
             return "+" + Double.toString(round(globalSum, 2));
@@ -366,7 +396,7 @@ public class ConvertUdtToExcel{
     }
 
     public boolean checkBoolSumOverflow(double num){
-        long iPart = (long) num;;
+        long iPart = (long) num;
         double fPart = num - iPart;
         return (fPart >= 0.7);
     }
