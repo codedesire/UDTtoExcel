@@ -1,0 +1,25 @@
+TYPE "adress_test"
+VERSION : 0.1
+
+
+  STRUCT
+   BOOL1 : BOOL ;
+   REAL1 : REAL ;
+   WORD1 : WORD ;
+   BOOL2 : BOOL ;
+   BOOL3 : BOOL ;
+   INT1 : INT ;
+   S5TIME1 : S5TIME ;
+   STRUCT1 : STRUCT
+    TIME1 : TIME ;
+    DATE1 : DATE ;
+    TIME_OF_DAY1 : TIME_OF_DAY ;
+    BOOL1 : BOOL ;
+    BOOL2 : BOOL ;
+    STRUCT2 : STRUCT
+     BOOL1 : BOOL ;
+     REAL1 : REAL ;
+    END_STRUCT ;
+   END_STRUCT ;
+  END_STRUCT ;
+END_TYPE

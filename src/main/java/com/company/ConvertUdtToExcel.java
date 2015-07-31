@@ -1,7 +1,6 @@
 package com.company;
 
 
-import org.apache.poi.ss.formula.FormulaParseException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -26,63 +25,6 @@ class Main {
         }
 
         new ConvertUdtToExcel(filename, excelFilename);
-
-        //obj.getTableTitle();
-
-       // createExcelFile(excelFilename);
-
-
-
-/*
-        System.out.println("Nesting of file is:" + getStructNesting(filename));
-
-        File myFile = new File(excelFilename);
-        FileInputStream fis = new FileInputStream(myFile);
-
-        // Finds the workbook instance for XLSX file
-        XSSFWorkbook myWorkBook = new XSSFWorkbook (fis);
-
-        // Return first sheet from the XLSX workbook
-        XSSFSheet mySheet = myWorkBook.getSheetAt(0);
-
-
-
-        Map<String, Object[]> data = new HashMap<String, Object[]>();
-        data.put("7", new Object[] {7d, "Sonya", "75K", "SALES", "Rupert"});
-        data.put("8", new Object[] {8d, "Kris", "85K", "SALES", "Rupert"});
-        data.put("9", new Object[] {9d, "Dave", "90K", "SALES", "Rupert"});
-
-        // Set to Iterate and add rows into XLS file
-        Set<String> newRows = data.keySet();
-
-        // get the last row number to append new data
-        int rownum = mySheet.getLastRowNum();
-        System.out.println("Last row number is:" + rownum);
-
-        for (String key : newRows) {
-
-            // Creating a new Row in existing XLSX sheet
-            Row row = mySheet.createRow(rownum++);
-            Object [] objArr = data.get(key);
-            int cellnum = 0;
-            for (Object obj : objArr) {
-                Cell cell = row.createCell(cellnum++);
-                if (obj instanceof String) {
-                    cell.setCellValue((String) obj);
-                } else if (obj instanceof Boolean) {
-                    cell.setCellValue((Boolean) obj);
-                } else if (obj instanceof Date) {
-                    cell.setCellValue((Date) obj);
-                } else if (obj instanceof Double) {
-                    cell.setCellValue((Double) obj);
-                }
-            }
-        }
-
-
-        FileOutputStream os = new FileOutputStream(myFile);
-        myWorkBook.write(os);
-        System.out.println("Writing on XLSX file Finished ...");*/
     }
 
     public static void parseArguments(String[] args){
@@ -126,7 +68,10 @@ public class ConvertUdtToExcel{
 
     public String filename , excelFilename;
 
-    private double globalSum, structSum  = 0;
+    private double globalSum  = 0;
+    private ArrayList<Double> structSum = new  ArrayList<Double>();
+
+    private int numberOfStruct = 0;
 
     private ArrayList<Short>  structBeginRows = new ArrayList<Short>();
     private ArrayList<Short>  structEndRows = new ArrayList<Short>();
@@ -169,12 +114,10 @@ public class ConvertUdtToExcel{
         dataTypes.put("REAL", 4.0);
         dataTypes.put("DWORD", 4.0);
         dataTypes.put("S5TIME", 2.0);
-        dataTypes.put("TIME", 2.0);
-        dataTypes.put("DATE", 4.0);
+        dataTypes.put("TIME", 4.0);
+        dataTypes.put("DATE", 2.0);
         dataTypes.put("TIME_OF_DAY", 4.0);
-
-
-
+        structSum.add(0.0);
     }
 
     private void createCellStyles(){
@@ -186,12 +129,8 @@ public class ConvertUdtToExcel{
         structEnd.setFillPattern(XSSFCellStyle.SOLID_FOREGROUND);
     }
 
-
-
-
     private void createExcelFile(String excelFilename) {
         createExcelEmptyFile(excelFilename);
-
     }
 
     private void createExcelEmptyFile(String excelFilename) {
@@ -226,7 +165,6 @@ public class ConvertUdtToExcel{
                     break;
                 }
                 lineNumber++;
-
             }
             scanner.close();
         }catch (FileNotFoundException ex){
@@ -257,24 +195,17 @@ public class ConvertUdtToExcel{
 
 
         }
-
-
         fillTableWithData(mySheet);
         autoSizeAllColumnWidth(mySheet);
         fillRowsForeground(mySheet);
-        removeLastRow(mySheet);
-
-
-
+        lastRowSum(mySheet);
+        System.out.println(structBeginRows);
+        System.out.println(structEndRows);
         }
 
-    private void removeLastRow(XSSFSheet mySheet) {
+    private void lastRowSum(XSSFSheet mySheet) {
         Row lastRow = mySheet.getRow(mySheet.getLastRowNum());
-        for (short iterator = 0; iterator <= 3; iterator++){
-            if(null == lastRow.getCell(iterator, Row.RETURN_NULL_AND_BLANK)) continue;
-            lastRow.removeCell(lastRow.getCell(iterator));
-        }
-
+        lastRow.getCell(0).setCellValue("=" + Double.toString(round(globalSum, 2)));
     }
 
     private void fillRowsForeground(XSSFSheet mySheet) {
@@ -320,8 +251,7 @@ public class ConvertUdtToExcel{
                         Row row = mySheet.createRow(rowIterator);
 
                         Cell cell = row.createCell(0);
-                        cell.setCellValue(getCurrentAddress(line));
-
+                        cell.setCellValue(getCurrentAddress(line, rowIterator));
                         cell = row.createCell(1);
 
                         if (line.contains(STRUCT_BEGIN)) {
@@ -363,14 +293,20 @@ public class ConvertUdtToExcel{
         }
     }
 
-    public String getCurrentAddress(String line) {
+    public String getCurrentAddress(String line, int rowIterator) {
         double currentDataSize, addressShift;
         double currentGlobalSum = globalSum;
         if (line.contains(STRUCT_BEGIN)) {
-            structSum = 0.0;
+            //System.out.println(isStructNested(rowIterator));
+            structSum.add(0.0);
+            numberOfStruct++;
             return "+" + Double.toString(round(globalSum, 2));
         } else if (line.contains(STRUCT_END)) {
-            return "=" + Double.toString(round(structSum, 2));
+            String outAddressString = "=" + Double.toString(round(structSum.get(numberOfStruct), 2));
+            if(numberOfStruct > 1) structSum.set(numberOfStruct-1, structSum.get(numberOfStruct)+structSum.get(numberOfStruct-1));
+            structSum.set(numberOfStruct , 0.0);
+            numberOfStruct--;
+            return outAddressString;
         } else {
             String dataType = line.split(TYPE_SEPARATOR)[1].split(TYPE_END_SEPARATOR)[0].replaceAll("\\s+", "");
             if (line.contains(ASSIGN_DEFAULT_VALUE)) dataType = dataType.split(ASSIGN_DEFAULT_VALUE)[0].replaceAll("\\s+", "");
@@ -379,15 +315,32 @@ public class ConvertUdtToExcel{
                 isPreviousBool = true;
                 addressShift = (checkBoolSumOverflow(globalSum)) ? 0.3 : 0.1;
             }
-            else if (isPreviousBool & checkBoolSumOverflow(globalSum)) {
-                addressShift = 2.0 + currentDataSize;
+            else if (isPreviousBool ) {
+                /*if (checkBoolSumOverflow(globalSum)){
+                    addressShift = currentDataSize;
+                }else{
+                    addressShift = currentDataSize + 1.0 + getBoolFractionToByte(globalSum);
+                    //currentGlobalSum += 1.0 + getBoolFractionToByte(globalSum);
+                }*/
+                addressShift = currentDataSize;
                 isPreviousBool = false;
             } else addressShift = currentDataSize;
 
-            structSum +=  addressShift;
+            structSum.set(numberOfStruct, structSum.get(numberOfStruct)+addressShift);
             globalSum += addressShift;
             return "+" + Double.toString(round(currentGlobalSum, 2));
         }
+    }
+
+    public double getBoolFractionToByte(double num) {
+        long iPart = (long) num;
+        double fPart = num - iPart;
+        return 1.0 - fPart;
+    }
+
+    private boolean isStructNested(int rowIterator) {
+        return (structEndRows.size()>=1) && rowIterator < structEndRows.get(structEndRows.size()-1);
+
     }
 
     private String getNestShifter(int shiftNumbers) {
@@ -407,7 +360,4 @@ public class ConvertUdtToExcel{
         bd = bd.setScale(places, RoundingMode.HALF_UP);
         return bd.doubleValue();
     }
-
-
-
 }
